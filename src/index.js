@@ -50,19 +50,15 @@ const PORT = process.env.PORT || 3000;
 
 const startServer = async () => {
   try {
+    console.log('Connecting to MongoDB...');
     await connectDB();
+    console.log('MongoDB connected');
     
-    app.listen(PORT, () => {
-      console.log(`
-╔═══════════════════════════════════════════════════════════╗
-║   TalentFlow LMS API Server                              ║
-║   Server: http://localhost:${PORT}                          ║
-║   Swagger: http://localhost:${PORT}/api-docs               ║
-╚═══════════════════════════════════════════════════════════╝
-      `);
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on port ${PORT}`);
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error('Failed to start server:', error.message);
     process.exit(1);
   }
 };
