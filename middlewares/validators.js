@@ -35,7 +35,7 @@ const submissionValidation = [
 
 const aiQueryValidation = [
   body('message').trim().notEmpty().withMessage('Message is required')
-    .isLength({ min: 3, max: 1000 }).withMessage('Message must be between 3 and 1000 characters'),
+    .isLength({ min: 1, max: 1000 }).withMessage('Message must be between 1 and 1000 characters'),
   body('courseId').optional().isString().withMessage('Invalid course ID'),
   body('lessonId').optional().isString().withMessage('Invalid lesson ID')
 ];

@@ -76,7 +76,7 @@ Create a PostgreSQL database named `Talent FlowDb` or update the `DB_NAME` in `.
 CREATE DATABASE "Talent FlowDb";
 ```
 
-## 🔐 API Endpoints
+##  API Endpoints
 
 ### Authentication
 
@@ -148,7 +148,7 @@ CREATE DATABASE "Talent FlowDb";
 | PUT | `/api/notifications/:id/read` | Mark as read |
 | PUT | `/api/notifications/read-all` | Mark all as read |
 
-## 📝 Example Requests
+## Example Requests
 
 ### Register User
 
@@ -187,7 +187,7 @@ curl -X POST http://localhost:3000/api/progress \
   }'
 ```
 
-## 🤖 AI Tutor Matching
+##  AI Tutor Matching
 
 When a student requests help via the AI endpoint:
 
