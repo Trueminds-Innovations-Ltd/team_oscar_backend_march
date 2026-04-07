@@ -187,7 +187,7 @@ curl -X POST http://localhost:3000/api/progress \
   }'
 ```
 
-## AI Tutor Matching
+## 🤖 AI Tutor Matching
 
 When a student requests help via the AI endpoint:
 

@@ -67,22 +67,36 @@ const seedData = async () => {
       category: 'Design',
       difficulty: 1,
       tutor: tutor1._id,
-      tags: ['UI/UX', 'Frontend'],
+      tags: ['UI/UX'],
       lessons: [
         { title: 'Introduction to UI/UX', content: 'Welcome to UI/UX design!', durationMinutes: 15, orderIndex: 1 },
         { title: 'User Research Methods', content: 'Learn user research.', durationMinutes: 25, orderIndex: 2 },
         { title: 'Wireframing Basics', content: 'Create wireframes.', durationMinutes: 30, orderIndex: 3 }
       ],
-      enrolledStudents: [student1._id, student2._id]
+      enrolledStudents: [student1._id]
     });
 
     const course2 = await Course.create({
+      title: 'Advanced Figma for UI/UX',
+      description: 'Master Figma for creating stunning user interfaces and prototypes.',
+      category: 'Design',
+      difficulty: 2,
+      tutor: tutor1._id,
+      tags: ['UI/UX'],
+      lessons: [
+        { title: 'Figma Basics', content: 'Getting started with Figma.', durationMinutes: 20, orderIndex: 1 },
+        { title: 'Components & Variants', content: 'Learn components.', durationMinutes: 25, orderIndex: 2 }
+      ],
+      enrolledStudents: []
+    });
+
+    const course3 = await Course.create({
       title: 'Modern React Development',
       description: 'Master React.js with hooks, context, and modern state management.',
       category: 'Development',
       difficulty: 2,
       tutor: tutor1._id,
-      tags: ['React', 'JavaScript'],
+      tags: ['Frontend'],
       lessons: [
         { title: 'React Setup & JSX', content: 'React setup.', durationMinutes: 20, orderIndex: 1 },
         { title: 'Components & Props', content: 'Learn components.', durationMinutes: 25, orderIndex: 2 },
@@ -91,28 +105,51 @@ const seedData = async () => {
       enrolledStudents: [student1._id]
     });
 
-    const course3 = await Course.create({
-      title: 'Backend Development with Node.js',
-      description: 'Build scalable backend applications using Node.js and Express.',
+    const course4 = await Course.create({
+      title: 'HTML, CSS & JavaScript Mastery',
+      description: 'Build responsive websites from scratch with HTML, CSS and JavaScript.',
       category: 'Development',
-      difficulty: 2,
-      tutor: tutor2._id,
-      tags: ['Backend', 'Node.js'],
+      difficulty: 1,
+      tutor: tutor1._id,
+      tags: ['Frontend'],
       lessons: [
-        { title: 'Node.js Introduction', content: 'Getting started.', durationMinutes: 15, orderIndex: 1 },
-        { title: 'Express.js Framework', content: 'Express.js basics.', durationMinutes: 25, orderIndex: 2 }
+        { title: 'HTML Fundamentals', content: 'Learn HTML.', durationMinutes: 25, orderIndex: 1 },
+        { title: 'CSS Styling', content: 'Style with CSS.', durationMinutes: 30, orderIndex: 2 }
       ],
-      enrolledStudents: [student2._id]
+      enrolledStudents: []
     });
 
-    tutor1.enrolledCourses = [course1._id, course2._id];
-    tutor2.enrolledCourses = [course3._id];
-    student1.enrolledCourses = [course1._id, course2._id];
-    student2.enrolledCourses = [course1._id, course3._id];
-    await tutor1.save();
-    await tutor2.save();
-    await student1.save();
-    await student2.save();
+    const course5 = await Course.create({
+      title: 'Data Analysis with Excel & Python',
+      description: 'Learn to analyze data and create insights using Excel and Python.',
+      category: 'Data',
+      difficulty: 1,
+      tutor: tutor2._id,
+      tags: ['Data Analysis'],
+      lessons: [
+        { title: 'Excel Basics', content: 'Getting started with Excel.', durationMinutes: 20, orderIndex: 1 },
+        { title: 'Python for Data', content: 'Python basics.', durationMinutes: 30, orderIndex: 2 }
+      ],
+      enrolledStudents: []
+    });
+
+    const course6 = await Course.create({
+      title: 'Product Management Essentials',
+      description: 'Learn the fundamentals of product management, roadmapping, and stakeholder communication.',
+      category: 'Product',
+      difficulty: 2,
+      tutor: tutor2._id,
+      tags: ['Product Management'],
+      lessons: [
+        { title: 'Intro to Product Mgmt', content: 'What is PM?', durationMinutes: 15, orderIndex: 1 },
+        { title: 'Roadmapping', content: 'Create roadmaps.', durationMinutes: 25, orderIndex: 2 }
+      ],
+      enrolledStudents: []
+    });
+
+    await User.findByIdAndUpdate(tutor1._id, { enrolledCourses: [course1._id, course2._id, course3._id, course4._id] });
+    await User.findByIdAndUpdate(tutor2._id, { enrolledCourses: [course5._id, course6._id] });
+    await User.findByIdAndUpdate(student1._id, { enrolledCourses: [course1._id, course3._id] });
 
     await Channel.create({
       course: course1._id,
