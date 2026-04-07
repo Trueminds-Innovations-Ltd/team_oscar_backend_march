@@ -2,14 +2,13 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
-    const uri = process.env.MONGODB_URI;
+    console.log('MongoDB URI:', process.env.MONGODB_URI ? 'Set' : 'Not Set');
     
-    if (!uri) {
-      throw new Error('MONGODB_URI not set. See .env file for setup instructions.');
+    if (!process.env.MONGODB_URI) {
+      throw new Error('MONGODB_URI environment variable is not set');
     }
     
-    console.log('Connecting to MongoDB...');
-    await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
+    await mongoose.connect(process.env.MONGODB_URI);
     console.log('MongoDB connected successfully');
   } catch (error) {
     console.error('MongoDB connection error:', error.message);
