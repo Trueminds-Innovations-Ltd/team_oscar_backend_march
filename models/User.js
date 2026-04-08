@@ -7,7 +7,12 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true },
   password: { type: String, required: true },
   role: { type: Number, required: true, enum: [1, 2] },
+  phone: { type: String, default: '' },
+  country: { type: String, default: '' },
+  state: { type: String, default: '' },
+  city: { type: String, default: '' },
   interests: [{ type: String }],
+  subTopics: [{ type: String }],
   level: { type: Number, enum: [1, 2, 3], default: 1 },
   emailConfirmed: { type: Boolean, default: false },
   confirmationToken: String,
@@ -36,15 +41,19 @@ userSchema.methods.comparePassword = async function(plainPassword) {
   return bcrypt.compare(plainPassword, this.password);
 };
 
-userSchema.methods.toPublicJSON = function() {
-  const obj = this.toJSON();
-  return {
-    ...obj,
-    role: this.role,
-    roleName: this.roleName,
-    level: this.level,
-    levelName: this.levelName
+  userSchema.methods.toPublicJSON = function() {
+    const obj = this.toJSON();
+    return {
+      ...obj,
+      role: this.role,
+      roleName: this.roleName,
+      level: this.level,
+      levelName: this.levelName,
+      phone: this.phone || '',
+      country: this.country || '',
+      state: this.state || '',
+      city: this.city || ''
+    };
   };
-};
 
 module.exports = mongoose.model('User', userSchema);

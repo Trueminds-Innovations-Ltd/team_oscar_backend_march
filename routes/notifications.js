@@ -51,4 +51,19 @@ router.put('/:id/read', authenticate, NotificationController.markAsRead);
  */
 router.put('/read-all', authenticate, NotificationController.markAllAsRead);
 
+/**
+ * @swagger
+ * /api/notifications/tutor-summary:
+ *   get:
+ *     summary: Get tutor dashboard summary
+ *     tags: [Notifications]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Dashboard summary for tutor
+ */
+router.get('/tutor-summary', authenticate, NotificationController.getTutorDashboardSummary);
+
+router.get('/tutor-details', authenticate, NotificationController.getTutorDashboardDetails);
+
 module.exports = router;

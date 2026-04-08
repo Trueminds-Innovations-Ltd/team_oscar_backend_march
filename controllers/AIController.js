@@ -17,6 +17,26 @@ class AIController {
       next(error);
     }
   }
+
+  static async selectTutor(req, res, next) {
+    try {
+      const { tutorIndex, originalMessage } = req.body;
+
+      if (!tutorIndex || !originalMessage) {
+        return errorResponse(res, 'Missing tutorIndex or originalMessage', 400);
+      }
+
+      const result = await AIService.selectTutor(req.user.id, tutorIndex, originalMessage);
+
+      if (result.success) {
+        return successResponse(res, { message: result.message, tutorName: result.tutorName }, 'Tutor selected successfully');
+      } else {
+        return errorResponse(res, result.message, 400);
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = AIController;

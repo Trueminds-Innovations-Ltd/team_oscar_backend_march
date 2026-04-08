@@ -1,5 +1,6 @@
 const Course = require('../models/Course');
 const Channel = require('../models/Channel');
+const User = require('../models/User');
 
 class CourseService {
   static async getAllCourses(filters = {}) {
@@ -28,16 +29,42 @@ class CourseService {
   }
 
   static async createCourse(tutorId, courseData) {
-    const course = new Course({ ...courseData, tutor: tutorId });
-    await course.save();
+    const tutor = await User.findById(tutorId);
+    if (!tutor) throw new Error('Tutor not found');
+
+    const courseDataToSave = { ...courseData, tutor: tutorId };
     
+    if (!courseDataToSave.availableDate) {
+      courseDataToSave.availableDate = new Date();
+    }
+
+    const course = new Course(courseDataToSave);
+    await course.save();
+
     const channel = new Channel({
       course: course._id,
       name: 'General Discussion',
       type: 'course'
     });
     await channel.save();
-    
+
+    const studentsToEnroll = await User.find({
+      role: 1,
+      interests: { $in: course.tags }
+    });
+
+    for (const student of studentsToEnroll) {
+      if (!student.enrolledCourses.includes(course._id)) {
+        student.enrolledCourses.push(course._id);
+        await student.save();
+        
+        if (!course.enrolledStudents.includes(student._id)) {
+          course.enrolledStudents.push(student._id);
+        }
+      }
+    }
+    await course.save();
+
     return course;
   }
 
@@ -60,7 +87,7 @@ class CourseService {
       await course.save();
     }
 
-    const user = require('../models/User').findById(userId);
+    const user = await User.findById(userId);
     if (user && !user.enrolledCourses.includes(courseId)) {
       user.enrolledCourses.push(courseId);
       await user.save();
@@ -71,6 +98,15 @@ class CourseService {
 
   static async getEnrolledCourses(userId) {
     return Course.find({ enrolledStudents: userId }).populate('tutor', 'name email');
+  }
+
+  static async getTutorCourses(tutorId) {
+    const tutor = await User.findById(tutorId);
+    if (!tutor) return [];
+    
+    return Course.find({
+      tags: { $in: tutor.interests || [] }
+    }).populate('tutor', 'name email');
   }
 }
 

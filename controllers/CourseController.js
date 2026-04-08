@@ -102,6 +102,16 @@ class CourseController {
       next(error);
     }
   }
+
+  static async getTutorCourses(req, res, next) {
+    try {
+      const courses = await CourseService.getTutorCourses(req.user.id);
+
+      return successResponse(res, { courses }, 'Tutor courses retrieved successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = CourseController;

@@ -4,7 +4,7 @@ const { sendEmail } = require('../utils/email');
 const { ROLE, ROLE_MAP } = require('../config/constants');
 
 class AuthService {
-  static async signup({ name, email, password, role }) {
+  static async signup({ name, email, password, role, phone, country, state, city }) {
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       throw new Error('User with this email already exists');
@@ -17,7 +17,11 @@ class AuthService {
 
     const confirmationToken = require('uuid').v4();
     const user = new User({
-      name, email, password, role: roleNum, confirmationToken
+      name, email, password, role: roleNum, confirmationToken,
+      phone: phone || '',
+      country: country || '',
+      state: state || '',
+      city: city || ''
     });
     await user.save();
     

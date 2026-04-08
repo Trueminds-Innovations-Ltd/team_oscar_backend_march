@@ -2,8 +2,6 @@ const express = require('express');
 const router = express.Router();
 const AuthController = require('../controllers/AuthController');
 const { authenticate } = require('../middlewares/auth');
-const validate = require('../middlewares/validate');
-const { signupValidation, loginValidation } = require('../middlewares/validators');
 
 /**
  * @swagger
@@ -27,7 +25,7 @@ const { signupValidation, loginValidation } = require('../middlewares/validators
  *       201:
  *         description: User registered successfully
  */
-router.post('/signup', validate(signupValidation), AuthController.signup);
+router.post('/signup', AuthController.signup);
 
 /**
  * @swagger
@@ -49,7 +47,7 @@ router.post('/signup', validate(signupValidation), AuthController.signup);
  *       200:
  *         description: Login successful
  */
-router.post('/login', validate(loginValidation), AuthController.login);
+router.post('/login', AuthController.login);
 
 /**
  * @swagger
@@ -80,5 +78,7 @@ router.get('/confirm/:token', AuthController.confirmEmail);
  *         description: Current user data
  */
 router.get('/me', authenticate, AuthController.getCurrentUser);
+
+router.put('/profile', authenticate, AuthController.updateProfile);
 
 module.exports = router;

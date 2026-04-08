@@ -8,6 +8,28 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY
 });
 
+const programLabels = {
+  "Frontend": "Frontend Development",
+  "UI/UX": "UI/UX Design",
+  "Backend": "Backend Development",
+  "Data Analysis": "Data Analysis",
+  "Product": "Product Management",
+  "Cloud": "Cloud Engineering",
+  "Networking": "Networking",
+  "Cyber Security": "Cyber Security"
+};
+
+const programSubTopics = {
+  "Frontend": ["React", "JavaScript", "TypeScript", "CSS", "Vue.js", "Next.js"],
+  "UI/UX": ["Wireframing", "Prototyping", "User Research", "Figma", "Design Systems"],
+  "Backend": ["Node.js", "Python", "Java", "Go", "Express.js", "Database Design"],
+  "Data Analysis": ["Python", "SQL", "Excel", "Data Visualization", "Statistics"],
+  "Product": ["Product Roadmaps", "OKRs", "User Interviews", "Go-to-Market", "Agile/Scrum"],
+  "Cloud": ["AWS", "Azure", "Google Cloud", "Docker", "Kubernetes", "DevOps"],
+  "Networking": ["CCNA", "Network Security", "Routing & Switching", "Firewalls", "VoIP"],
+  "Cyber Security": ["Penetration Testing", "Ethical Hacking", "Security+", "CISSP"]
+};
+
 class AIService {
   static async processQuery(userId, { message, courseId }) {
     const user = await User.findById(userId);
@@ -17,17 +39,33 @@ class AIService {
     const response = {
       reply: '',
       suggestions: [],
-      tutorMatch: null
+      tutorMatch: null,
+      needsTutorSelection: false
     };
 
     if (this.explicitlyRequestsTutor(lower)) {
-      const tutorMatch = await this.matchTutorsForStudent(userId, message);
+      const studentInterests = user.interests || [];
+      const studentSubTopics = user.subTopics || [];
+      
+      if (studentInterests.length === 0) {
+        response.reply = "I couldn't find any enrolled programs in your profile. Please complete your onboarding to get started with learning!";
+        response.suggestions = ['Complete onboarding', 'View my profile'];
+        return response;
+      }
+      
+      const tutorMatch = await this.matchTutorsForStudent(userId, message, studentInterests, studentSubTopics);
       response.tutorMatch = tutorMatch;
       
       if (tutorMatch && tutorMatch.tutors.length > 0) {
-        response.reply = this.generateTutorMatchResponse(tutorMatch, user.name);
+        if (tutorMatch.tutors.length === 1) {
+          await this.connectToTutor(userId, tutorMatch.tutors[0], message);
+          response.reply = `I've connected you to ${tutorMatch.tutors[0].name}! They've been notified and will reach out to help you soon.`;
+        } else {
+          response.reply = this.generateTutorMatchResponse(tutorMatch, user.name);
+          response.needsTutorSelection = true;
+        }
       } else {
-        response.reply = "I couldn't find any tutors available for your enrolled courses. Please try again later or contact support.";
+        response.reply = "I couldn't find any tutors available for your enrolled programs. Please try again later or contact support.";
       }
       response.suggestions = ['Ask another question', 'View my courses'];
     } else {
@@ -46,7 +84,8 @@ class AIService {
       'talk to tutor', 'speak to tutor', 'chat with tutor',
       'get me a tutor', 'find me a tutor',
       'can i talk to a tutor', 'want to talk to a tutor',
-      'help me with tutor', 'tutor help', 'tutor assistance'
+      'help me with tutor', 'tutor help', 'tutor assistance',
+      'i want a tutor', 'get tutor', 'find tutor'
     ];
     return tutorKeywords.some(k => lower.includes(k));
   }
@@ -56,33 +95,51 @@ class AIService {
       return null;
     }
 
-    const courses = await Course.find({ enrolledStudents: user._id })
-      .select('title description tags lessons');
-
-    if (courses.length === 0) {
+    const interests = user.interests || [];
+    const subTopics = user.subTopics || [];
+    
+    if (interests.length === 0) {
       return null;
     }
 
-    let context = `The student is enrolled in the following courses:\n\n`;
-
-    for (const course of courses) {
-      context += `📚 **${course.title}**\n`;
-      context += `Tags: ${course.tags.join(', ')}\n`;
-      if (course.description) {
-        context += `Description: ${course.description}\n`;
-      }
+    let context = `The student is enrolled in the following programs and sub-topics:\n\n`;
+    
+    for (const interest of interests) {
+      const programName = programLabels[interest] || interest;
+      context += `📚 **${programName}**\n`;
       
-      if (course.lessons && course.lessons.length > 0) {
-        context += `Lessons:\n`;
-        for (const lesson of course.lessons) {
-          context += `- ${lesson.title}`;
-          if (lesson.content) {
-            context += `: ${lesson.content}`;
-          }
-          context += `\n`;
-        }
+      const relatedSubTopics = subTopics.filter(st => 
+        (programSubTopics[interest] || []).includes(st)
+      );
+      
+      if (relatedSubTopics.length > 0) {
+        context += `Sub-topics: ${relatedSubTopics.join(', ')}\n`;
+      } else {
+        const defaultSubTopics = programSubTopics[interest] || [];
+        context += `Sub-topics: ${defaultSubTopics.join(', ')}\n`;
       }
       context += `\n`;
+    }
+
+    const courses = await Course.find({ 
+      $or: [
+        { tags: { $in: interests } },
+        { category: { $in: interests } }
+      ]
+    }).select('title description tags lessons');
+
+    if (courses.length > 0) {
+      context += `Available courses related to your programs:\n\n`;
+      for (const course of courses) {
+        context += `📖 **${course.title}**\n`;
+        if (course.description) {
+          context += `   ${course.description}\n`;
+        }
+        if (course.lessons && course.lessons.length > 0) {
+          context += `   Lessons: ${course.lessons.length}\n`;
+        }
+        context += `\n`;
+      }
     }
 
     return context;
@@ -93,7 +150,7 @@ class AIService {
     const studentLevel = user.levelName || 'Beginner';
 
     let systemPrompt = `You are a helpful AI learning assistant for a learning management system called TalentFlow. 
-You help students learn and understand course content.
+You help students learn and understand course content based on their enrolled programs and sub-topics.
 
 Guidelines:
 - Be friendly and encouraging
@@ -101,14 +158,14 @@ Guidelines:
 - Use examples when helpful
 - If you don't know something, say so honestly
 - Keep responses concise but informative
-- Never make up information about topics not in the course content
+- Focus on the student's enrolled programs and sub-topics
 
-Remember: You should ONLY answer based on the course content provided. If a question is outside the course content, politely redirect the student to ask about their enrolled courses or suggest connecting with a tutor.`;
+Remember: You should ONLY answer based on the student's enrolled programs and course content provided. If a question is outside the course content, politely redirect the student to ask about their enrolled programs or suggest connecting with a tutor.`;
 
     if (courseContext) {
-      systemPrompt += `\n\nHere is the course content for this student:\n\n${courseContext}`;
+      systemPrompt += `\n\nHere is the student's enrollment information:\n\n${courseContext}`;
     } else {
-      systemPrompt += `\n\nThe student is not currently enrolled in any courses.`;
+      systemPrompt += `\n\nThe student is not currently enrolled in any programs.`;
     }
 
     const chatMessages = [
@@ -125,10 +182,10 @@ Remember: You should ONLY answer based on the course content provided. If a ques
       });
 
       let reply = chatCompletion.choices[0]?.message?.content || 
-        "I received your message. Could you ask about your enrolled courses?";
+        "I received your message. Could you ask about your enrolled programs?";
 
-      if (!courseContext && !reply.includes("course")) {
-        reply += "\n\n💡 Tip: Complete your onboarding to get enrolled in courses and start learning!";
+      if (!courseContext && !reply.includes("program")) {
+        reply += "\n\n💡 Tip: Complete your onboarding to get enrolled in programs and start learning!";
       } else if (courseContext && !reply.includes("tutor")) {
         reply += "\n\n❓ Need more help? Say 'connect me to a tutor' for personalized assistance!";
       }
@@ -154,7 +211,7 @@ Remember: You should ONLY answer based on the course content provided. If a ques
     }
 
     if (lower.includes('hi') || lower.includes('hello')) {
-      return `Hello! I can see you're enrolled in some courses. What would you like to learn about today?`;
+      return `Hello! I can see you're enrolled in some programs. What would you like to learn about today?`;
     }
 
     if (lower.includes('what courses') || lower.includes('my courses')) {
@@ -175,72 +232,104 @@ Remember: You should ONLY answer based on the course content provided. If a ques
   }
 
   static generateTutorMatchResponse(tutorMatch, studentName) {
-    const tutorList = tutorMatch.tutors.map(t => 
-      `• **${t.name}** - ${t.course}`
+    const tutorList = tutorMatch.tutors.map((t, index) => 
+      `${index + 1}. **${t.name}** - ${t.program}`
     ).join('\n');
 
-    return `I've found ${tutorMatch.tutors.length} tutor(s) for your enrolled courses:\n\n${tutorList}\n\nI've sent them your question and they'll respond via your notifications!`;
+    return `I found ${tutorMatch.tutors.length} tutor(s) available for your enrolled programs:\n\n${tutorList}\n\nPlease enter the number (1-${tutorMatch.tutors.length}) of the tutor you'd like to connect with, and I'll set up the connection for you!`;
   }
 
-  static async matchTutorsForStudent(studentId, message) {
+  static async matchTutorsForStudent(studentId, message, studentInterests, studentSubTopics) {
     const student = await User.findById(studentId);
     if (!student) return null;
 
-    const enrolledCourses = await Course.find({ enrolledStudents: studentId })
-      .populate('tutor', 'name email');
-
-    if (enrolledCourses.length === 0) {
-      return { matched: true, tutors: [], message: 'No enrolled courses' };
+    if (studentInterests.length === 0) {
+      return { matched: true, tutors: [], message: 'No enrolled programs' };
     }
 
-    const tutors = enrolledCourses
-      .filter(course => course.tutor)
-      .map(course => ({
-        id: course.tutor._id,
-        name: course.tutor.name,
-        email: course.tutor.email,
-        courseId: course._id,
-        course: course.title
-      }));
+    const tutors = await User.find({
+      role: ROLE.TUTOR,
+      $or: [
+        { interests: { $in: studentInterests } },
+        { subTopics: { $in: studentSubTopics } }
+      ]
+    }).select('name email interests subTopics');
 
-    const uniqueTutors = [];
-    const seenIds = new Set();
-    for (const tutor of tutors) {
-      if (!seenIds.has(tutor.id.toString())) {
-        seenIds.add(tutor.id.toString());
-        uniqueTutors.push(tutor);
-      }
+    if (tutors.length === 0) {
+      return { matched: true, tutors: [], message: 'No tutors found' };
     }
 
-    for (const tutor of uniqueTutors) {
-      await Notification.create({
-        user: tutor.id,
-        type: 'tutor_match_request',
-        title: 'Student Needs Help',
-        message: `Student: ${student.name}\nCourse: ${tutor.course}\n\nQuestion: "${message.substring(0, 300)}"`,
-        data: { 
-          studentId: student._id,
-          studentName: student.name,
-          courseId: tutor.courseId,
-          courseName: tutor.course,
-          question: message
-        }
-      });
-
-      await Notification.create({
-        user: studentId,
-        type: 'tutor_matched',
-        title: 'Tutor Contacted',
-        message: `I've sent your request to ${tutor.name} for help with "${tutor.course}". They'll respond soon!`,
-        data: { tutorId: tutor.id, tutorName: tutor.name, courseId: tutor.courseId }
-      });
-    }
+    const tutorList = tutors.map(tutor => {
+      const matchingInterests = (tutor.interests || []).filter(i => studentInterests.includes(i));
+      const programName = programLabels[matchingInterests[0]] || matchingInterests[0] || 'General';
+      
+      return {
+        id: tutor._id,
+        name: tutor.name,
+        email: tutor.email,
+        program: programName,
+        interests: tutor.interests || [],
+        subTopics: tutor.subTopics || []
+      };
+    });
 
     return {
       matched: true,
-      tutors: uniqueTutors,
+      tutors: tutorList,
       studentName: student.name,
-      question: message.substring(0, 200)
+      question: message.substring(0, 200),
+      needsSelection: tutorList.length > 1
+    };
+  }
+
+  static async connectToTutor(studentId, tutor, message) {
+    const student = await User.findById(studentId);
+    
+    await Notification.create({
+      user: tutor.id,
+      type: 'tutor_request',
+      title: 'Student Needs Help',
+      message: `Student: ${student.name}\nProgram: ${tutor.program}\n\nQuestion: "${message.substring(0, 300)}"`,
+      data: { 
+        studentId: student._id,
+        studentName: student.name,
+        question: message,
+        program: tutor.program
+      }
+    });
+
+    await Notification.create({
+      user: studentId,
+      type: 'tutor_connected',
+      title: 'Tutor Connected',
+      message: `You've been connected to ${tutor.name} for help with ${tutor.program}. They'll respond soon!`,
+      data: { tutorId: tutor.id, tutorName: tutor.name, program: tutor.program }
+    });
+  }
+
+  static async selectTutor(studentId, tutorIndex, originalMessage) {
+    const student = await User.findById(studentId);
+    const studentInterests = student.interests || [];
+    const studentSubTopics = student.subTopics || [];
+
+    const tutorMatch = await this.matchTutorsForStudent(studentId, originalMessage, studentInterests, studentSubTopics);
+    
+    if (!tutorMatch || !tutorMatch.tutors || tutorMatch.tutors.length === 0) {
+      return { success: false, message: 'No tutors available' };
+    }
+
+    const selectedIndex = parseInt(tutorIndex) - 1;
+    if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= tutorMatch.tutors.length) {
+      return { success: false, message: 'Invalid tutor number. Please enter a valid number.' };
+    }
+
+    const selectedTutor = tutorMatch.tutors[selectedIndex];
+    await this.connectToTutor(studentId, selectedTutor, originalMessage);
+
+    return {
+      success: true,
+      message: `Great! I've connected you to ${selectedTutor.name}. They've been notified and will reach out to help you soon!`,
+      tutorName: selectedTutor.name
     };
   }
 }

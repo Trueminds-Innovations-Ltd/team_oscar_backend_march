@@ -17,12 +17,21 @@ const courseSchema = new mongoose.Schema({
   tutor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   tags: [{ type: String }],
   lessons: [lessonSchema],
-  enrolledStudents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
+  enrolledStudents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  availableDate: { type: Date, default: Date.now }
 }, { timestamps: true });
 
 courseSchema.virtual('difficultyLabel').get(function() {
   const labels = { 1: 'Beginner', 2: 'Intermediate', 3: 'Advanced' };
   return labels[this.difficulty];
+});
+
+courseSchema.virtual('moduleNumber').get(function() {
+  return 1;
+});
+
+courseSchema.virtual('totalModules').get(function() {
+  return this.lessons?.length || 1;
 });
 
 courseSchema.set('toJSON', { virtuals: true });

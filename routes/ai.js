@@ -29,4 +29,27 @@ const { aiQueryValidation } = require('../middlewares/validators');
  */
 router.post('/query', authenticate, validate(aiQueryValidation), AIController.processQuery);
 
+/**
+ * @swagger
+ * /api/ai/select-tutor:
+ *   post:
+ *     summary: Select a tutor from the list
+ *     tags: [AI]
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [tutorIndex, originalMessage]
+ *             properties:
+ *               tutorIndex: { type: number }
+ *               originalMessage: { type: string }
+ *     responses:
+ *       200:
+ *         description: Tutor selected successfully
+ */
+router.post('/select-tutor', authenticate, AIController.selectTutor);
+
 module.exports = router;

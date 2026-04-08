@@ -4,8 +4,8 @@ const { successResponse, errorResponse } = require('../utils/response');
 class AuthController {
   static async signup(req, res, next) {
     try {
-      const { name, email, password, role } = req.body;
-      const result = await AuthService.signup({ name, email, password, role });
+      const { name, email, password, role, phone, country, state, city } = req.body;
+      const result = await AuthService.signup({ name, email, password, role, phone, country, state, city });
 
       return successResponse(res, {
         user: result.user,
@@ -60,6 +60,30 @@ class AuthController {
       }
 
       return successResponse(res, { user: user.toPublicJSON() }, 'User retrieved successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateProfile(req, res, next) {
+    try {
+      const User = require('../models/User');
+      const { name, phone, country, state, city } = req.body;
+      
+      const user = await User.findById(req.user.id);
+      if (!user) {
+        return errorResponse(res, 'User not found', 404);
+      }
+
+      if (name) user.name = name;
+      if (phone !== undefined) user.phone = phone;
+      if (country !== undefined) user.country = country;
+      if (state !== undefined) user.state = state;
+      if (city !== undefined) user.city = city;
+
+      await user.save();
+
+      return successResponse(res, { user: user.toPublicJSON() }, 'Profile updated successfully');
     } catch (error) {
       next(error);
     }
