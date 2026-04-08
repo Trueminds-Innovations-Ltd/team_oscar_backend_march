@@ -2,7 +2,7 @@
 
 A scalable and production-ready backend for a web-based Learning Management System (LMS) platform.
 
-## 🚀 Features
+## Features
 
 - **User Authentication** - JWT-based auth with email confirmation
 - **Role-based Access** - Students and Tutors with distinct capabilities
@@ -13,7 +13,7 @@ A scalable and production-ready backend for a web-based Learning Management Syst
 - **AI Tutor Matching** - Intelligent tutor matching when students need help
 - **Notifications** - Real-time notification system
 
-## 🛠 Tech Stack
+##  Tech Stack
 
 - **Runtime**: Node.js
 - **Framework**: Express.js
@@ -21,7 +21,7 @@ A scalable and production-ready backend for a web-based Learning Management Syst
 - **Authentication**: JWT
 - **Architecture**: MVC/Clean Architecture
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 TalentFlow/
@@ -42,7 +42,7 @@ TalentFlow/
     └── index.js      # Application entry point
 ```
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### Prerequisites
 
@@ -187,7 +187,7 @@ curl -X POST http://localhost:3000/api/progress \
   }'
 ```
 
-##  AI Tutor Matching
+## 🤖 AI Tutor Matching
 
 When a student requests help via the AI endpoint:
 
@@ -196,7 +196,7 @@ When a student requests help via the AI endpoint:
 3. Sends notifications to matched tutors
 4. Confirms match to student
 
-## 🔒 Security
+##  Security
 
 - Passwords hashed with bcrypt (12 rounds)
 - JWT tokens with configurable expiration
@@ -204,7 +204,7 @@ When a student requests help via the AI endpoint:
 - Role-based access control
 - SQL injection prevention via parameterized queries
 
-## 📦 Test Accounts
+##  Test Accounts
 
 After running `npm run seed`:
 
@@ -215,6 +215,6 @@ After running `npm run seed`:
 | Student | alice@student.com | Password123 |
 | Student | bob@student.com | Password123 |
 
-## 📜 License
+##  License
 
 MIT License
