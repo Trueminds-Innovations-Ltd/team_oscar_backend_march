@@ -2,13 +2,55 @@ const Course = require('../models/Course');
 const User = require('../models/User');
 const Progress = require('../models/Progress');
 
+const programMapping = {
+  "Frontend": ["Frontend", "Frontend Development", "Development", "React", "JavaScript"],
+  "UI/UX": ["UI/UX", "UI/UX Design", "Design", "Figma"],
+  "Backend": ["Backend", "Backend Development", "Node.js", "Python"],
+  "Data Analysis": ["Data Analysis", "Data", "Analytics", "Python"],
+  "Product": ["Product", "Product Management"],
+  "Cloud": ["Cloud", "Cloud Engineering", "AWS", "Azure"],
+  "Networking": ["Networking", "Network"],
+  "Cyber Security": ["Cyber Security", "Security", "Ethical Hacking"]
+};
+
+const programLabels = {
+  "Frontend": "Frontend Development",
+  "UI/UX": "UI/UX Design",
+  "Backend": "Backend Development",
+  "Data Analysis": "Data Analysis",
+  "Product": "Product Management",
+  "Cloud": "Cloud Engineering",
+  "Networking": "Networking",
+  "Cyber Security": "Cyber Security"
+};
+
 class StudentCourseService {
   static async getStudentCourses(userId) {
     const user = await User.findById(userId);
     if (!user) throw new Error('User not found');
 
-    const courses = await Course.find({ enrolledStudents: userId })
-      .populate('tutor', 'name email');
+    const userInterests = user.interests || [];
+    const userSubTopics = user.subTopics || [];
+
+    // Build array of search terms from user's interests
+    let searchTerms = [...userInterests];
+    userInterests.forEach(interest => {
+      const aliases = programMapping[interest] || [];
+      searchTerms = [...searchTerms, ...aliases];
+    });
+
+    // Remove duplicates
+    searchTerms = [...new Set(searchTerms)];
+
+    // Find courses that match user's interests through tags or category
+    const courses = await Course.find({
+      $or: [
+        { enrolledStudents: userId },
+        { tags: { $in: searchTerms } },
+        { category: { $in: searchTerms } },
+        { title: { $in: Object.values(programLabels) } }
+      ]
+    }).populate('tutor', 'name email');
 
     const progressData = await Progress.find({ user: userId });
 
@@ -35,9 +77,22 @@ class StudentCourseService {
         return !lessonProgress?.completed;
       });
 
+      // Get matching program for display
+      let matchedProgram = null;
+      for (const [program, aliases] of Object.entries(programMapping)) {
+        if (aliases.some(alias => 
+          course.tags?.includes(alias) || 
+          course.category === alias ||
+          course.title.includes(alias)
+        )) {
+          matchedProgram = programLabels[program] || program;
+          break;
+        }
+      }
+
       return {
         _id: course._id,
-        title: course.title,
+        title: matchedProgram || course.title,
         description: course.description,
         category: course.category,
         difficulty: course.difficulty,
@@ -52,8 +107,8 @@ class StudentCourseService {
         lastVisited: lastAccessed,
         nextUp: nextLesson?.title || 'Course Complete',
         completedAt: overallProgress >= 100 ? new Date() : null,
-        studentInterests: user.interests || [],
-        studentSubTopics: user.subTopics || []
+        studentInterests: userInterests,
+        studentSubTopics: userSubTopics
       };
     });
 
