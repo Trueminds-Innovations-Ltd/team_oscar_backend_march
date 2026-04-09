@@ -26,10 +26,11 @@ class AuthService {
     await user.save();
     
     try {
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
       await sendEmail({
         to: email,
         subject: 'Confirm your TalentFlow account',
-        body: `Click here to confirm: https://team-oscar-frontend-march.onrender.com/auth/confirm/${confirmationToken}`
+        body: `Click here to confirm: ${frontendUrl}/auth/confirm/${confirmationToken}`
       });
     } catch (emailError) {
       console.error('[Email] Failed to send confirmation email, auto-confirming user:', emailError.message);
