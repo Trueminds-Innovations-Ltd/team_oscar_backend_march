@@ -1,4 +1,5 @@
 const AIService = require('../services/AIService');
+const AIConversation = require('../models/AIConversation');
 const User = require('../models/User');
 const { successResponse, errorResponse } = require('../utils/response');
 
@@ -27,7 +28,7 @@ const programSubTopics = {
 class AIController {
   static async processQuery(req, res, next) {
     try {
-      const { message, courseId, lessonId } = req.body;
+      const { message, courseId, lessonId, conversationId } = req.body;
 
       const response = await AIService.processQuery(req.user.id, {
         message,
@@ -35,7 +36,40 @@ class AIController {
         lessonId
       });
 
-      return successResponse(res, { response }, 'AI response generated successfully');
+      const userId = req.user.id;
+      let aiConv;
+      
+      if (conversationId) {
+        aiConv = await AIConversation.findById(conversationId);
+      }
+      
+      if (!aiConv) {
+        aiConv = new AIConversation({
+          user: userId,
+          messages: [],
+          lastMessageAt: new Date()
+        });
+      }
+
+      aiConv.messages.push({
+        role: 'user',
+        content: message,
+        createdAt: new Date()
+      });
+      
+      aiConv.messages.push({
+        role: 'ai',
+        content: response.reply,
+        createdAt: new Date()
+      });
+      
+      aiConv.lastMessageAt = new Date();
+      await aiConv.save();
+
+      return successResponse(res, { 
+        response, 
+        conversationId: aiConv._id 
+      }, 'AI response generated successfully');
     } catch (error) {
       next(error);
     }

@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const CourseController = require('../controllers/courseController');
+const CourseController = require('../controllers/CourseController');
 const StudentCourseController = require('../controllers/StudentCourseController');
 const { authenticate, authorize } = require('../middlewares/auth');
+
+const courseController = CourseController;
 
 /**
  * @swagger
