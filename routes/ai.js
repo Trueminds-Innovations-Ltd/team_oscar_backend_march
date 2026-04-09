@@ -52,4 +52,10 @@ router.post('/query', authenticate, validate(aiQueryValidation), AIController.pr
  */
 router.post('/select-tutor', authenticate, AIController.selectTutor);
 
+router.post('/select-program', authenticate, AIController.selectProgram);
+
+router.post('/select-subtopic', authenticate, AIController.selectSubTopic);
+
+router.post('/submit-question', authenticate, AIController.submitQuestion);
+
 module.exports = router;

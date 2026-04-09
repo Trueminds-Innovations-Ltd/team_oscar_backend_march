@@ -2,6 +2,7 @@ const Groq = require('groq-sdk');
 const User = require('../models/User');
 const Course = require('../models/Course');
 const Notification = require('../models/Notification');
+const Conversation = require('../models/Conversation');
 const { ROLE } = require('../config/constants');
 
 const groq = new Groq({
@@ -40,7 +41,11 @@ class AIService {
       reply: '',
       suggestions: [],
       tutorMatch: null,
-      needsTutorSelection: false
+      needsTutorSelection: false,
+      needsProgramSelection: false,
+      needsSubTopicSelection: false,
+      needsQuestion: false,
+      conversationState: null
     };
 
     if (this.explicitlyRequestsTutor(lower)) {
@@ -52,20 +57,66 @@ class AIService {
         response.suggestions = ['Complete onboarding', 'View my profile'];
         return response;
       }
-      
-      const tutorMatch = await this.matchTutorsForStudent(userId, message, studentInterests, studentSubTopics);
-      response.tutorMatch = tutorMatch;
-      
-      if (tutorMatch && tutorMatch.tutors.length > 0) {
-        if (tutorMatch.tutors.length === 1) {
-          await this.connectToTutor(userId, tutorMatch.tutors[0], message);
-          response.reply = `I've connected you to ${tutorMatch.tutors[0].name}! They've been notified and will reach out to help you soon.`;
+
+      if (studentInterests.length === 1) {
+        const program = studentInterests[0];
+        const relatedSubTopics = studentSubTopics.filter(st => 
+          (programSubTopics[program] || []).includes(st)
+        );
+        
+        if (relatedSubTopics.length === 1) {
+          const tutorMatch = await this.matchTutorsForStudent(userId, message, studentInterests, studentSubTopics);
+          response.tutorMatch = tutorMatch;
+          
+          if (tutorMatch && tutorMatch.tutors.length > 0) {
+            response.reply = `I can help connect you to a tutor for ${programLabels[program] || program} - ${relatedSubTopics[0]}. What specific question do you have for the tutor?\n\nPlease type your question and I'll connect you.`;
+            response.needsQuestion = true;
+            response.conversationState = {
+              step: 'selectTutor',
+              program: program,
+              subTopic: relatedSubTopics[0],
+              tutors: tutorMatch.tutors,
+              question: null
+            };
+          } else {
+            response.reply = "I couldn't find any tutors available for your enrolled programs. Please try again later or contact support.";
+          }
+        } else if (relatedSubTopics.length > 1) {
+          response.reply = `I can see you're enrolled in ${programLabels[program] || program}. Which specific topic do you need help with?\n\n${relatedSubTopics.map((st, i) => `${i + 1}. ${st}`).join('\n')}\n\nPlease enter the number of the topic.`;
+          response.needsSubTopicSelection = true;
+          response.conversationState = {
+            step: 'selectSubTopic',
+            program: program,
+            availableSubTopics: relatedSubTopics,
+            tutors: tutorMatch?.tutors || [],
+            question: null
+          };
         } else {
-          response.reply = this.generateTutorMatchResponse(tutorMatch, user.name);
-          response.needsTutorSelection = true;
+          const tutorMatch = await this.matchTutorsForStudent(userId, message, studentInterests, studentSubTopics);
+          response.tutorMatch = tutorMatch;
+          
+          if (tutorMatch && tutorMatch.tutors.length > 0) {
+            response.reply = `I can help connect you to a tutor for ${programLabels[program] || program}. What specific question do you have for the tutor?\n\nPlease type your question and I'll connect you.`;
+            response.needsQuestion = true;
+            response.conversationState = {
+              step: 'selectTutor',
+              program: program,
+              subTopic: null,
+              tutors: tutorMatch.tutors,
+              question: null
+            };
+          } else {
+            response.reply = "I couldn't find any tutors available for your enrolled programs.";
+          }
         }
       } else {
-        response.reply = "I couldn't find any tutors available for your enrolled programs. Please try again later or contact support.";
+        response.reply = `I see you're enrolled in multiple programs. Which one do you need help with?\n\n${studentInterests.map((int, i) => `${i + 1}. ${programLabels[int] || int}`).join('\n')}\n\nPlease enter the number of the program.`;
+        response.needsProgramSelection = true;
+        response.conversationState = {
+          step: 'selectProgram',
+          availablePrograms: studentInterests,
+          tutors: []
+        };
       }
       response.suggestions = ['Ask another question', 'View my courses'];
     } else {
@@ -282,19 +333,86 @@ Remember: You should ONLY answer based on the student's enrolled programs and co
     };
   }
 
-  static async connectToTutor(studentId, tutor, message) {
+  static async connectToTutor(studentId, tutor, message, program, subTopic) {
     const student = await User.findById(studentId);
+    const programName = programLabels[program] || program;
+    
+    const existingConv = await Conversation.findOne({
+      student: studentId,
+      tutor: tutor.id
+    }).sort({ lastMessageAt: -1 });
+
+    if (existingConv) {
+      existingConv.messages.push({
+        sender: studentId,
+        content: message,
+        read: false
+      });
+      existingConv.lastMessage = message;
+      existingConv.lastMessageAt = new Date();
+      existingConv.studentUnread = false;
+      existingConv.tutorUnread = true;
+      if (programName) existingConv.program = programName;
+      if (subTopic) existingConv.subTopic = subTopic;
+      await existingConv.save();
+      
+      await Notification.create({
+        user: tutor.id,
+        type: 'tutor_request',
+        title: 'Student Needs Help',
+        message: `Student: ${student.name}\nProgram: ${programName}${subTopic ? ` - ${subTopic}` : ''}\n\nQuestion: "${message.substring(0, 300)}"`,
+        data: { 
+          studentId: student._id,
+          studentName: student.name,
+          question: message,
+          program: programName,
+          subTopic: subTopic,
+          conversationId: existingConv._id
+        }
+      });
+
+      await Notification.create({
+        user: studentId,
+        type: 'tutor_connected',
+        title: 'Tutor Connected',
+        message: `You've been connected to ${tutor.name} for help with ${programName}${subTopic ? ` - ${subTopic}` : ''}. They'll respond soon!`,
+        data: { tutorId: tutor.id, tutorName: tutor.name, program: programName, subTopic: subTopic, conversationId: existingConv._id }
+      });
+      
+      return;
+    }
+    
+    const conversation = new Conversation({
+      participants: [studentId, tutor.id],
+      student: studentId,
+      tutor: tutor.id,
+      program: programName,
+      subTopic: subTopic || null,
+      initialQuestion: message,
+      lastMessage: message,
+      lastMessageAt: new Date(),
+      studentUnread: false,
+      tutorUnread: true,
+      messages: [{
+        sender: studentId,
+        content: message,
+        read: false
+      }]
+    });
+    await conversation.save();
     
     await Notification.create({
       user: tutor.id,
       type: 'tutor_request',
       title: 'Student Needs Help',
-      message: `Student: ${student.name}\nProgram: ${tutor.program}\n\nQuestion: "${message.substring(0, 300)}"`,
+      message: `Student: ${student.name}\nProgram: ${programName}${subTopic ? ` - ${subTopic}` : ''}\n\nQuestion: "${message.substring(0, 300)}"`,
       data: { 
         studentId: student._id,
         studentName: student.name,
         question: message,
-        program: tutor.program
+        program: programName,
+        subTopic: subTopic,
+        conversationId: conversation._id
       }
     });
 
@@ -302,15 +420,23 @@ Remember: You should ONLY answer based on the student's enrolled programs and co
       user: studentId,
       type: 'tutor_connected',
       title: 'Tutor Connected',
-      message: `You've been connected to ${tutor.name} for help with ${tutor.program}. They'll respond soon!`,
-      data: { tutorId: tutor.id, tutorName: tutor.name, program: tutor.program }
+      message: `You've been connected to ${tutor.name} for help with ${programName}${subTopic ? ` - ${subTopic}` : ''}. They'll respond soon!`,
+      data: { tutorId: tutor.id, tutorName: tutor.name, program: programName, subTopic: subTopic, conversationId: conversation._id }
     });
   }
 
-  static async selectTutor(studentId, tutorIndex, originalMessage) {
+  static async selectTutor(studentId, tutorIndex, originalMessage, conversationState = null) {
     const student = await User.findById(studentId);
     const studentInterests = student.interests || [];
     const studentSubTopics = student.subTopics || [];
+
+    let program = conversationState?.program;
+    let subTopic = conversationState?.subTopic;
+    let question = conversationState?.question || originalMessage;
+
+    if (!program && studentInterests.length > 0) {
+      program = studentInterests[0];
+    }
 
     const tutorMatch = await this.matchTutorsForStudent(studentId, originalMessage, studentInterests, studentSubTopics);
     
@@ -324,7 +450,7 @@ Remember: You should ONLY answer based on the student's enrolled programs and co
     }
 
     const selectedTutor = tutorMatch.tutors[selectedIndex];
-    await this.connectToTutor(studentId, selectedTutor, originalMessage);
+    await this.connectToTutor(studentId, selectedTutor, question, program, subTopic);
 
     return {
       success: true,

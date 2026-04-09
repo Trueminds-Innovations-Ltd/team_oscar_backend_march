@@ -8,6 +8,8 @@ const Channel = require('../models/Channel');
 const Progress = require('../models/Progress');
 const Assignment = require('../models/Assignment');
 const { StudySession, StudySessionProgress } = require('../models/StudySession');
+const Conversation = require('../models/Conversation');
+const Notification = require('../models/Notification');
 
 const seedData = async () => {
   try {
@@ -20,8 +22,10 @@ const seedData = async () => {
     await Assignment.deleteMany({});
     await StudySession.deleteMany({});
     await StudySessionProgress.deleteMany({});
+    await Conversation.deleteMany({});
+    await Notification.deleteMany({});
 
-    console.log('Seed data created - no test accounts created.');
+    console.log('All collections cleared.');
     console.log('Real users will be created through registration.\n');
 
   } catch (error) {

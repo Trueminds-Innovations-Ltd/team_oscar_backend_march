@@ -63,23 +63,23 @@ class NotificationController {
       const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const startOfYesterday = new Date(startOfToday.getTime() - 24 * 60 * 60 * 1000);
 
-      const pendingMessages = await Notification.countDocuments({
-        user: tutorId,
-        read: false,
-        type: 'tutor_request'
+      const Conversation = require('../models/Conversation');
+      const unreadConversations = await Conversation.find({
+        tutor: tutorId,
+        tutorUnread: true
       });
 
-      const unreadToday = await Notification.countDocuments({
-        user: tutorId,
-        read: false,
-        type: 'tutor_request',
-        createdAt: { $gte: startOfToday }
-      });
+      const pendingMessages = unreadConversations.length;
+
+      const uniqueStudentIds = [...new Set(unreadConversations.map(c => c.student.toString()))];
+
+      const unreadTodayCount = unreadConversations.filter(c => 
+        c.lastMessageAt && new Date(c.lastMessageAt) >= startOfToday
+      ).length;
 
       const tutorInterests = tutor.interests || [];
       const tutorSubTopics = tutor.subTopics || [];
 
-      // Student is "aligned" with tutor if they have matching interests OR matching subTopics
       const activeStudents = await User.countDocuments({
         role: 1,
         $or: [
@@ -108,11 +108,11 @@ class NotificationController {
 
       const studentsIncrease = studentsCreatedToday - studentsCreatedYesterday;
 
-      const studentsNeedingHelp = pendingMessages;
+      const studentsNeedingHelp = uniqueStudentIds.length;
 
       return successResponse(res, {
         pendingMessages,
-        unreadToday,
+        unreadToday: unreadTodayCount,
         studentsNeedingHelp,
         activeStudents,
         studentsIncrease: Math.max(0, studentsIncrease)
@@ -130,7 +130,7 @@ class NotificationController {
       if (!tutor) {
         return errorResponse(res, 'Tutor not found', 404);
       }
-
+      
       const now = new Date();
       const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 

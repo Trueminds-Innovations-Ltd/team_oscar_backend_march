@@ -12,6 +12,7 @@ const notificationRoutes = require('./notifications');
 const studySessionsRoutes = require('./studySessions');
 const uploadRoutes = require('./upload');
 const studySessionProgressRoutes = require('./studySessionProgress');
+const conversationRoutes = require('./conversations');
 
 router.use('/auth', authRoutes);
 router.use('/onboarding', onboardingRoutes);
@@ -23,6 +24,7 @@ router.use('/notifications', notificationRoutes);
 router.use('/study-sessions', studySessionsRoutes);
 router.use('/progress', progressRoutes);
 router.use('/study-sessions', studySessionProgressRoutes);
+router.use('/conversations', conversationRoutes);
 router.use('/upload', uploadRoutes);
 
 router.get('/health', (req, res) => {
