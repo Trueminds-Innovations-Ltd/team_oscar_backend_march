@@ -25,11 +25,18 @@ class AuthService {
     });
     await user.save();
     
-    await sendEmail({
-      to: email,
-      subject: 'Confirm your TalentFlow account',
-      body: `Click here to confirm: http://localhost:3000/api/auth/confirm/${confirmationToken}`
-    });
+    try {
+      await sendEmail({
+        to: email,
+        subject: 'Confirm your TalentFlow account',
+        body: `Click here to confirm: https://team-oscar-frontend-march.onrender.com/auth/confirm/${confirmationToken}`
+      });
+    } catch (emailError) {
+      console.error('[Email] Failed to send confirmation email, auto-confirming user:', emailError.message);
+      user.emailConfirmed = true;
+      user.confirmationToken = null;
+      await user.save();
+    }
 
     return { user: user.toPublicJSON(), confirmationToken };
   }
