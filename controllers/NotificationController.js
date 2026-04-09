@@ -69,7 +69,16 @@ class NotificationController {
         tutorUnread: true
       });
 
-      const pendingMessages = unreadConversations.length;
+      let pendingMessages = 0;
+      for (const conv of unreadConversations) {
+        const unreadStudentMessages = conv.messages.filter(msg => {
+          const senderId = msg.sender ? msg.sender.toString() : 'unknown';
+          const isNotTutor = senderId !== tutorId.toString();
+          const isUnread = msg.read !== true;
+          return isNotTutor && isUnread;
+        });
+        pendingMessages += unreadStudentMessages.length;
+      }
 
       const uniqueStudentIds = [...new Set(unreadConversations.map(c => c.student.toString()))];
 

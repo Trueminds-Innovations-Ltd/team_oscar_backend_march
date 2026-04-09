@@ -66,6 +66,7 @@ class ConversationController {
   static async getConversation(req, res) {
     try {
       const { id } = req.params;
+      const { markRead } = req.query;
       const userId = req.user.id;
 
       const conversation = await Conversation.findById(id)
@@ -100,12 +101,24 @@ class ConversationController {
       
       const isTutor = user.role === ROLE.TUTOR;
 
-      if (isTutor) {
-        conversation.tutorUnread = false;
-      } else {
-        conversation.studentUnread = false;
+      if (markRead === 'true') {
+        if (isTutor) {
+          conversation.tutorUnread = false;
+          conversation.messages.forEach(msg => {
+            if (msg.sender.toString() !== userId.toString()) {
+              msg.read = true;
+            }
+          });
+        } else {
+          conversation.studentUnread = false;
+          conversation.messages.forEach(msg => {
+            if (msg.sender.toString() !== userId.toString()) {
+              msg.read = true;
+            }
+          });
+        }
+        await conversation.save();
       }
-      await conversation.save();
 
       res.json({
         conversation: {
