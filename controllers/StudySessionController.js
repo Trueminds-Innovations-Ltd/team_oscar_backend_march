@@ -132,6 +132,18 @@ class StudySessionController {
         enrolledSubTopics.includes(session.subTopic)
       );
 
+      const safeExtractText = async (filePath) => {
+        try {
+          const { extractTextFromFile } = require('../utils/fileExtractor');
+          const ext = path.extname(filePath).toLowerCase();
+          if (!['.pdf', '.docx'].includes(ext)) return null;
+          return await extractTextFromFile(filePath);
+        } catch (err) {
+          console.error('File extraction error:', err.message);
+          return null;
+        }
+      };
+
       sessions = await Promise.all(sessions.map(async (session) => {
         const sessionObj = session.toObject();
         
@@ -141,9 +153,13 @@ class StudySessionController {
           const filePath = path.join(uploadsDir, session.fileUrl.replace('/uploads/', ''));
           
           if (fs.existsSync(filePath)) {
-            const extractedText = await extractTextFromFile(filePath);
-            if (extractedText) {
-              sessionObj.fileContent = extractedText.substring(0, 50000);
+            try {
+              const extractedText = await safeExtractText(filePath);
+              if (extractedText) {
+                sessionObj.fileContent = extractedText.substring(0, 50000);
+              }
+            } catch (extractErr) {
+              console.error('Extract error:', extractErr.message);
             }
           }
         }
