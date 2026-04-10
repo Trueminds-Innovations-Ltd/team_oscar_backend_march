@@ -1,38 +1,57 @@
-const nodemailer = require('nodemailer');
+const SibApiV3Sdk = require("sib-api-v3-sdk");
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT) || 587,
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  }
-});
+const client = SibApiV3Sdk.ApiClient.instance;
+
+// Set API Key
+client.authentications["api-key"].apiKey = process.env.BREVO_API_KEY;
+
+const tranEmailApi = new SibApiV3Sdk.TransactionalEmailsApi();
 
 class EmailService {
   static async send({ to, subject, body }) {
     try {
-      const mailOptions = {
-        from: `"${process.env.EMAIL_FROM_NAME || 'TalentFlow'}" <${process.env.EMAIL_FROM}>`,
-        to,
-        subject,
-        text: body,
-        html: body.replace(/\n/g, '<br>')
+      const sender = {
+        email: process.env.EMAIL_FROM,
+        name: process.env.EMAIL_FROM_NAME || "TalentFlow",
       };
 
-      const info = await transporter.sendMail(mailOptions);
-      console.log(`[Email] Sent to ${to}: ${info.messageId}`);
-      return { success: true, messageId: info.messageId };
+      const receivers = [
+        {
+          email: to,
+        },
+      ];
+
+      const response = await tranEmailApi.sendTransacEmail({
+        sender,
+        to: receivers,
+        subject,
+        htmlContent: `
+          <div style="font-family: Arial; max-width: 600px; margin: auto;">
+            <h2 style="color: #4CAF50;">Welcome to TalentFlow 🚀</h2>
+            
+            <p>Hello,</p>
+            
+            <p>We're excited to have you onboard.</p>
+            
+            <p>${body}</p>
+
+            <hr />
+            
+            <p style="font-size: 12px; color: #888;">
+              If you didn’t request this, please ignore this email.
+            </p>
+          </div>
+        `,
+      });
+
+      console.log("[Email] Sent:", response.messageId);
+
+      return { success: true, messageId: response.messageId };
     } catch (error) {
-      console.error('[Email] Error:', error.message);
+      console.error("[Email] Error:", error.response?.body || error.message);
       throw error;
     }
   }
 }
 
-const sendEmail = async ({ to, subject, body }) => {
-  return EmailService.send({ to, subject, body });
-};
-
-module.exports = { sendEmail, EmailService };
+module.exports = { EmailService };
