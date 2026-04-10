@@ -18,7 +18,8 @@ const corsOptions = {
     if (
       !origin || // allow Postman / server-to-server
       origin.includes("localhost") ||
-      origin.includes("onrender.com")
+      origin.includes("onrender.com") ||
+      origin.includes("vercel.app")
     ) {
       callback(null, true);
     } else {
