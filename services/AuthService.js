@@ -52,7 +52,7 @@ class AuthService {
         subject: "Confirm your TalentFlow account",
         body: `
           Click the link below to confirm your account:<br/><br/>
-          <a href="${frontendUrl}/auth/confirm/${confirmationToken}">
+          <a href="${frontendUrl}/confirm-email?token=${confirmationToken}">
             Confirm Account
           </a>
         `,
