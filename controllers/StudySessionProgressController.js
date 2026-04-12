@@ -93,14 +93,17 @@ class StudySessionProgressController {
       progressList.forEach(p => {
         if (p.studySession) {
           const sessionId = p.studySession._id.toString();
-          const cleanProgress = {
-            progress: typeof p.progress === 'number' && !isNaN(p.progress) ? p.progress : 0,
-            lastPosition: typeof p.lastPosition === 'number' && !isNaN(p.lastPosition) ? p.lastPosition : 0,
-            completed: p.completed === true,
-            createdAt: p.createdAt,
-            updatedAt: p.updatedAt
-          };
-          progressMap[sessionId] = cleanProgress;
+          if (!progressMap[sessionId]) {
+            const cleanProgress = {
+              progress: typeof p.progress === 'number' && !isNaN(p.progress) ? p.progress : 0,
+              lastPosition: typeof p.lastPosition === 'number' && !isNaN(p.lastPosition) ? p.lastPosition : 0,
+              completed: p.completed === true,
+              createdAt: p.createdAt,
+              updatedAt: p.updatedAt
+            };
+            console.log(`Setting progress for ${sessionId}:`, cleanProgress);
+            progressMap[sessionId] = cleanProgress;
+          }
         }
       });
 
