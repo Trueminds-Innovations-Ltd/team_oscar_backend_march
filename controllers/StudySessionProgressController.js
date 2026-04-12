@@ -25,20 +25,25 @@ class StudySessionProgressController {
       const { progress, lastPosition } = req.body;
       const userId = req.user.id;
 
+      const cleanProgress = typeof progress === 'number' && !isNaN(progress) ? Math.min(100, Math.max(0, Math.round(progress))) : 0;
+      const cleanLastPosition = typeof lastPosition === 'number' && !isNaN(lastPosition) ? Math.round(lastPosition) : 0;
+
+      console.log(`Saving progress for session ${sessionId}: progress=${cleanProgress}, lastPosition=${cleanLastPosition}`);
+
       let progressDoc = await StudySessionProgress.findOne({ user: userId, studySession: sessionId });
       
       if (!progressDoc) {
         progressDoc = new StudySessionProgress({
           user: userId,
           studySession: sessionId,
-          progress: progress || 0,
-          lastPosition: lastPosition || 0,
-          completed: progress >= 100
+          progress: cleanProgress,
+          lastPosition: cleanLastPosition,
+          completed: cleanProgress >= 100
         });
       } else {
-        progressDoc.progress = progress || progressDoc.progress;
-        progressDoc.lastPosition = lastPosition || progressDoc.lastPosition;
-        progressDoc.completed = progressDoc.progress >= 100;
+        progressDoc.progress = cleanProgress;
+        progressDoc.lastPosition = cleanLastPosition;
+        progressDoc.completed = cleanProgress >= 100;
       }
       
       await progressDoc.save();
@@ -87,9 +92,19 @@ class StudySessionProgressController {
       const progressMap = {};
       progressList.forEach(p => {
         if (p.studySession) {
-          progressMap[p.studySession._id.toString()] = p.toObject();
+          const sessionId = p.studySession._id.toString();
+          const cleanProgress = {
+            progress: typeof p.progress === 'number' && !isNaN(p.progress) ? p.progress : 0,
+            lastPosition: typeof p.lastPosition === 'number' && !isNaN(p.lastPosition) ? p.lastPosition : 0,
+            completed: p.completed === true,
+            createdAt: p.createdAt,
+            updatedAt: p.updatedAt
+          };
+          progressMap[sessionId] = cleanProgress;
         }
       });
+
+      console.log('Progress map:', JSON.stringify(progressMap, null, 2));
 
       return successResponse(res, { progressMap }, 'Progress retrieved successfully');
     } catch (error) {

@@ -27,13 +27,15 @@ class AuthService {
     }
 
     const confirmationToken = uuidv4();
-
+    const isDev = process.env.NODE_ENV === 'development';
+    
     const user = new User({
       name,
       email,
       password,
       role: roleNum,
       confirmationToken,
+      emailConfirmed: isDev ? true : false,
       phone: phone || "",
       country: country || "",
       state: state || "",
@@ -61,6 +63,11 @@ class AuthService {
       console.log("✅ Confirmation email sent");
     } catch (emailError) {
       console.error("❌ Email failed:", emailError.message);
+      if (isDev) {
+        user.emailConfirmed = true;
+        await user.save();
+        console.log("✅ Auto-confirmed user (development mode)");
+      }
     }
 
     return {

@@ -131,15 +131,32 @@ class StudySessionController {
       sessions = sessions.filter(session => 
         enrolledSubTopics.includes(session.subTopic)
       );
+      
+      const availableFiles = [
+        '/uploads/1775531155550-684667807.docx',
+        '/uploads/1775539407951-231361233.docx',
+        '/uploads/1775595500518-206687605.docx'
+      ];
 
       const safeExtractText = async (filePath) => {
         try {
+          const fs = require('fs');
+          if (!fs.existsSync(filePath)) {
+            console.log('File does not exist:', filePath);
+            return null;
+          }
           const { extractTextFromFile } = require('../utils/fileExtractor');
           const ext = path.extname(filePath).toLowerCase();
-          if (!['.pdf', '.docx'].includes(ext)) return null;
-          return await extractTextFromFile(filePath);
+          console.log('File extension:', ext);
+          if (!['.pdf', '.docx'].includes(ext)) {
+            console.log('Unsupported file type');
+            return null;
+          }
+          const text = await extractTextFromFile(filePath);
+          console.log('Extracted text length:', text ? text.length : 'null');
+          return text;
         } catch (err) {
-          console.error('File extraction error:', err.message);
+          console.error('File extraction error:', err.message, err.stack);
           return null;
         }
       };
@@ -147,20 +164,29 @@ class StudySessionController {
       sessions = await Promise.all(sessions.map(async (session) => {
         const sessionObj = session.toObject();
         
+        console.log('Session:', sessionObj.subTopic, 'fileUrl:', sessionObj.fileUrl);
+        
         if (!sessionObj.fileContent && session.fileUrl) {
           const projectRoot = process.cwd();
           const uploadsDir = path.join(projectRoot, 'uploads');
           const filePath = path.join(uploadsDir, session.fileUrl.replace('/uploads/', ''));
+          
+          console.log('Checking file path:', filePath, 'exists:', fs.existsSync(filePath));
           
           if (fs.existsSync(filePath)) {
             try {
               const extractedText = await safeExtractText(filePath);
               if (extractedText) {
                 sessionObj.fileContent = extractedText.substring(0, 50000);
+                console.log('Extracted content length:', extractedText.length);
+              } else {
+                console.log('No text extracted - extraction returned null');
               }
             } catch (extractErr) {
               console.error('Extract error:', extractErr.message);
             }
+          } else {
+            console.log('File does not exist at path');
           }
         }
         

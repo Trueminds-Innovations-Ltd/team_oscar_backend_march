@@ -8,7 +8,8 @@ const connectDB = async () => {
 
     await mongoose.connect(process.env.MONGODB_URI);
 
-    console.log("✅ MongoDB Atlas connected");
+    const isLocal = process.env.MONGODB_URI.includes('localhost');
+    console.log(`✅ MongoDB ${isLocal ? 'Local' : 'Atlas'} connected - ${process.env.MONGODB_URI}`);
   } catch (error) {
     console.error("❌ Connection error:", error.message);
     process.exit(1);

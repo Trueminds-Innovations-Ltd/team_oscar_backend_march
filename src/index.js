@@ -1,7 +1,8 @@
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
+console.log('MongoDB URI:', process.env.MONGODB_URI);
 const express = require("express");
 const cors = require("cors");
-const path = require("path");
 const swaggerUi = require("swagger-ui-express");
 const swaggerJsDoc = require("swagger-jsdoc");
 
